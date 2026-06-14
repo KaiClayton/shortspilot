@@ -23,7 +23,21 @@
 .empty-state p { font-size: 14px; margin-bottom: 24px; }
 </style>
 <div class="container">
-  <div class="page-header">
+ <div style="background:#111; border:1px solid #222; border-radius:12px; padding:20px; margin-bottom:24px; display:flex; align-items:center; justify-content:space-between;">
+  <div>
+    <div style="font-size:15px; font-weight:600; color:#fff; margin-bottom:4px;">YouTube Account</div>
+    {% if user.youtube_connected %}
+      <div style="font-size:13px; color:#1D9E75;">✓ Connected</div>
+    {% else %}
+      <div style="font-size:13px; color:#666;">Not connected — connect to enable auto-posting</div>
+    {% endif %}
+  </div>
+  {% if user.youtube_connected %}
+    <a href="/disconnect-youtube" class="btn btn-secondary" style="font-size:12px;">Disconnect</a>
+  {% else %}
+    <a href="/connect-youtube" class="btn btn-primary">Connect YouTube</a>
+  {% endif %}
+</div>
     <h1>Dashboard</h1>
     <a href="/add-channel" class="btn btn-primary">+ Add Channel</a>
   </div>
