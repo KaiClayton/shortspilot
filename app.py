@@ -145,8 +145,10 @@ def oauth2callback():
         return redirect(url_for('login'))
     redirect_uri = os.environ.get("REDIRECT_URI", request.host_url.rstrip('/') + '/oauth2callback')
     CLIENT_SECRETS['web']['redirect_uris'] = [redirect_uri]
-    flow = Flow.from_client_config(CLIENT_SECRETS, scopes=SCOPES, state=session.get('oauth_state'), redirect_uri=redirect_uri)
-    flow.fetch_token(authorization_response=request.url.replace('http://', 'https://'))
+  flow = Flow.from_client_config(CLIENT_SECRETS, scopes=SCOPES, state=session.get('oauth_state'), redirect_uri=redirect_uri)
+flow.code_challenge_method = None
+os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
+flow.fetch_token(authorization_response=request.url.replace('http://', 'https://'), code_verifier=None)
     creds = flow.credentials
     user = User.query.get(session['user_id'])
     user.youtube_token = json.dumps({
