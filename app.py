@@ -1,19 +1,39 @@
-﻿import os
+import os
+import json
+import pickle
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
+from google_auth_oauthlib.flow import Flow
+from google.auth.transport.requests import Request
+from googleapiclient.discovery import build
+import google.oauth2.credentials
 
 app = Flask(__name__)
-app.secret_key = 'shortspilot-secret-2026'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///shortspilot.db'
+app.secret_key = os.environ.get('SECRET_KEY', 'shortspilot-secret-2026')
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///shortspilot.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
 db = SQLAlchemy(app)
+
+SCOPES = ['https://www.googleapis.com/auth/youtube.upload']
+CLIENT_SECRETS = {
+    "web": {
+        "client_id": os.environ.get("GOOGLE_CLIENT_ID", ""),
+        "client_secret": os.environ.get("GOOGLE_CLIENT_SECRET", ""),
+        "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+        "token_uri": "https://oauth2.googleapis.com/token",
+        "redirect_uris": [os.environ.get("REDIRECT_URI", "http://localhost:5000/oauth2callback")]
+    }
+}
 
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(120), unique=True, nullable=False)
     password = db.Column(db.String(200), nullable=False)
+    youtube_token = db.Column(db.Text, nullable=True)
+    youtube_connected = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     channels = db.relationship('Channel', backref='user', lazy=True)
 
@@ -39,6 +59,24 @@ class UploadJob(db.Model):
 
 with app.app_context():
     db.create_all()
+
+def get_youtube_for_user(user):
+    if not user.youtube_token:
+        return None
+    creds_data = json.loads(user.youtube_token)
+    creds = google.oauth2.credentials.Credentials(**creds_data)
+    if creds.expired and creds.refresh_token:
+        creds.refresh(Request())
+        user.youtube_token = json.dumps({
+            'token': creds.token,
+            'refresh_token': creds.refresh_token,
+            'token_uri': creds.token_uri,
+            'client_id': creds.client_id,
+            'client_secret': creds.client_secret,
+            'scopes': list(creds.scopes) if creds.scopes else SCOPES
+        })
+        db.session.commit()
+    return build('youtube', 'v3', credentials=creds)
 
 @app.route('/')
 def index():
@@ -84,10 +122,56 @@ def logout():
 def dashboard():
     if 'user_id' not in session:
         return redirect(url_for('login'))
+    user = User.query.get(session['user_id'])
     channels = Channel.query.filter_by(user_id=session['user_id']).all()
     total_scheduled = UploadJob.query.join(Channel).filter(Channel.user_id == session['user_id'], UploadJob.status == 'scheduled').count()
     total_uploaded = UploadJob.query.join(Channel).filter(Channel.user_id == session['user_id'], UploadJob.status == 'uploaded').count()
-    return render_template('dashboard.html', channels=channels, total_scheduled=total_scheduled, total_uploaded=total_uploaded)
+    return render_template('dashboard.html', user=user, channels=channels, total_scheduled=total_scheduled, total_uploaded=total_uploaded)
+
+@app.route('/connect-youtube')
+def connect_youtube():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    redirect_uri = os.environ.get("REDIRECT_URI", request.host_url.rstrip('/') + '/oauth2callback')
+    CLIENT_SECRETS['web']['redirect_uris'] = [redirect_uri]
+    flow = Flow.from_client_config(CLIENT_SECRETS, scopes=SCOPES, redirect_uri=redirect_uri)
+    auth_url, state = flow.authorization_url(access_type='offline', include_granted_scopes='true', prompt='consent')
+    session['oauth_state'] = state
+    return redirect(auth_url)
+
+@app.route('/oauth2callback')
+def oauth2callback():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    redirect_uri = os.environ.get("REDIRECT_URI", request.host_url.rstrip('/') + '/oauth2callback')
+    CLIENT_SECRETS['web']['redirect_uris'] = [redirect_uri]
+    flow = Flow.from_client_config(CLIENT_SECRETS, scopes=SCOPES, state=session.get('oauth_state'), redirect_uri=redirect_uri)
+    flow.fetch_token(authorization_response=request.url.replace('http://', 'https://'))
+    creds = flow.credentials
+    user = User.query.get(session['user_id'])
+    user.youtube_token = json.dumps({
+        'token': creds.token,
+        'refresh_token': creds.refresh_token,
+        'token_uri': creds.token_uri,
+        'client_id': creds.client_id,
+        'client_secret': creds.client_secret,
+        'scopes': list(creds.scopes) if creds.scopes else SCOPES
+    })
+    user.youtube_connected = True
+    db.session.commit()
+    flash('YouTube connected successfully!', 'success')
+    return redirect(url_for('dashboard'))
+
+@app.route('/disconnect-youtube')
+def disconnect_youtube():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    user = User.query.get(session['user_id'])
+    user.youtube_token = None
+    user.youtube_connected = False
+    db.session.commit()
+    flash('YouTube disconnected', 'success')
+    return redirect(url_for('dashboard'))
 
 @app.route('/add-channel', methods=['GET', 'POST'])
 def add_channel():
@@ -96,7 +180,7 @@ def add_channel():
     if request.method == 'POST':
         name = request.form['name']
         url = request.form['url']
-        channel = Channel(user_id=session['user_id'], name=name, url=url, status='downloading')
+        channel = Channel(user_id=session['user_id'], name=name, url=url, status='pending')
         db.session.add(channel)
         db.session.commit()
         flash('Channel added!', 'success')
