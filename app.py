@@ -4,9 +4,8 @@ from flask import Flask, render_template, request, redirect, url_for, session, f
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
+from requests_oauthlib import OAuth2Session
 from google_auth_oauthlib.flow import Flow
-from google.auth.transport.requests import Request
-from googleapiclient.discovery import build
 import google.oauth2.credentials
 
 app = Flask(__name__)
@@ -14,12 +13,21 @@ app.secret_key = os.environ.get('SECRET_KEY', 'shortspilot-secret-2026')
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///shortspilot.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
+os.environ['OAUTHLIB_RELAX_TOKEN_SCOPE'] = '1'
 db = SQLAlchemy(app)
 
 SCOPES = ['https://www.googleapis.com/auth/youtube.upload']
+AUTH_URI = 'https://accounts.google.com/o/oauth2/auth'
+TOKEN_URI = 'https://oauth2.googleapis.com/token'
 
-def get_client_secrets():
-    return {"web": {"client_id": os.environ.get("GOOGLE_CLIENT_ID", ""),"client_secret": os.environ.get("GOOGLE_CLIENT_SECRET", ""),"auth_uri": "https://accounts.google.com/o/oauth2/auth","token_uri": "https://oauth2.googleapis.com/token","redirect_uris": [os.environ.get("REDIRECT_URI", "http://localhost:5000/oauth2callback")]}}
+def client_id():
+    return os.environ.get("GOOGLE_CLIENT_ID", "")
+
+def client_secret():
+    return os.environ.get("GOOGLE_CLIENT_SECRET", "")
+
+def redirect_uri():
+    return os.environ.get("REDIRECT_URI", "http://localhost:5000/oauth2callback")
 
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -107,12 +115,8 @@ def dashboard():
 def connect_youtube():
     if 'user_id' not in session:
         return redirect(url_for('login'))
-    redirect_uri = os.environ.get("REDIRECT_URI", request.host_url.rstrip('/') + '/oauth2callback')
-    secrets = get_client_secrets()
-    secrets['web']['redirect_uris'] = [redirect_uri]
-    flow = Flow.from_client_config(secrets, scopes=SCOPES, redirect_uri=redirect_uri)
-    flow.code_challenge_method = None
-    auth_url, state = flow.authorization_url(access_type='offline', prompt='consent', code_challenge_method=None)
+    oauth = OAuth2Session(client_id(), redirect_uri=redirect_uri(), scope=SCOPES)
+    auth_url, state = oauth.authorization_url(AUTH_URI, access_type='offline', prompt='consent')
     session['oauth_state'] = state
     return redirect(auth_url)
 
@@ -120,16 +124,10 @@ def connect_youtube():
 def oauth2callback():
     if 'user_id' not in session:
         return redirect(url_for('login'))
-    redirect_uri = os.environ.get("REDIRECT_URI", request.host_url.rstrip('/') + '/oauth2callback')
-    secrets = get_client_secrets()
-    secrets['web']['redirect_uris'] = [redirect_uri]
-    flow = Flow.from_client_config(secrets, scopes=SCOPES, state=session.get('oauth_state'), redirect_uri=redirect_uri)
-    flow.code_challenge_method = None
-    auth_response = request.url.replace('http://', 'https://')
-    flow.fetch_token(authorization_response=auth_response, code_verifier='')
-    creds = flow.credentials
+    oauth = OAuth2Session(client_id(), redirect_uri=redirect_uri(), state=session.get('oauth_state'))
+    token = oauth.fetch_token(TOKEN_URI, authorization_response=request.url.replace('http://', 'https://'), client_secret=client_secret())
     user = db.session.get(User, session['user_id'])
-    user.youtube_token = json.dumps({'token': creds.token,'refresh_token': creds.refresh_token,'token_uri': creds.token_uri,'client_id': creds.client_id,'client_secret': creds.client_secret,'scopes': list(creds.scopes) if creds.scopes else SCOPES})
+    user.youtube_token = json.dumps(token)
     user.youtube_connected = True
     db.session.commit()
     flash('YouTube connected!', 'success')
