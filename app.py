@@ -127,9 +127,6 @@ def api_status():
         return jsonify({'error': 'not logged in'}), 401
     channels = Channel.query.filter_by(user_id=session['user_id']).all()
     return jsonify([{
-        'id': c.id, 'name': c.name, 'status': c.status, 'video_count': c.video_count
-    } for c in channels])
-
-if __name__ == '__main__':
-port = int(os.environ.get("PORT", 5000))
-app.run(host="0.0.0.0", port=port, debug=False)
+       if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port, debug=False)
