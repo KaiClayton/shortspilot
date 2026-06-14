@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+{% block content %}
+<style>
+.page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 28px; }
+.page-header h1 { font-size: 24px; font-weight: 700; color: #fff; }
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 32px; }
+.stat { background: #111; border: 1px solid #222; border-radius: 12px; padding: 20px; }
+.stat-label { font-size: 12px; color: #555; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; }
+.stat-val { font-size: 28px; font-weight: 700; color: #fff; }
+.stat-val.green { color: #1D9E75; }
+.channels-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+.channel-card { background: #111; border: 1px solid #222; border-radius: 12px; padding: 20px; text-decoration: none; transition: border-color 0.15s; }
+.channel-card:hover { border-color: #444; }
+.channel-name { font-size: 16px; font-weight: 600; color: #fff; margin-bottom: 6px; }
+.channel-url { font-size: 12px; color: #555; margin-bottom: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.channel-meta { display: flex; gap: 12px; }
+.channel-badge { font-size: 11px; padding: 3px 10px; border-radius: 20px; }
+.badge-downloading { background: #1a2e1f; color: #5DCAA5; border: 1px solid #1D9E75; }
+.badge-ready { background: #1a1f2e; color: #5D9ACA; border: 1px solid #1D5F9E; }
+.badge-pending { background: #2e2a1a; color: #CAB45D; border: 1px solid #9E841D; }
+.empty-state { text-align: center; padding: 80px 20px; color: #444; }
+.empty-state h3 { font-size: 18px; color: #555; margin-bottom: 8px; }
+.empty-state p { font-size: 14px; margin-bottom: 24px; }
+</style>
+<div class="container">
+  <div class="page-header">
+    <h1>Dashboard</h1>
+    <a href="/add-channel" class="btn btn-primary">+ Add Channel</a>
+  </div>
+  <div class="stats">
+    <div class="stat"><div class="stat-label">Channels</div><div class="stat-val">{{ channels|length }}</div></div>
+    <div class="stat"><div class="stat-label">Scheduled</div><div class="stat-val green">{{ total_scheduled }}</div></div>
+    <div class="stat"><div class="stat-label">Uploaded</div><div class="stat-val">{{ total_uploaded }}</div></div>
+  </div>
+  {% if channels %}
+  <div class="channels-grid">
+    {% for channel in channels %}
+    <a href="/channel/{{ channel.id }}" class="channel-card">
+      <div class="channel-name">{{ channel.name }}</div>
+      <div class="channel-url">{{ channel.url }}</div>
+      <div class="channel-meta">
+        <span class="channel-badge badge-{{ channel.status }}">{{ channel.status }}</span>
+        <span style="font-size:12px; color:#555;">{{ channel.video_count }} videos</span>
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty-state">
+    <h3>No channels yet</h3>
+    <p>Add a YouTube channel to start downloading and auto-posting Shorts</p>
+    <a href="/add-channel" class="btn btn-primary">+ Add your first channel</a>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

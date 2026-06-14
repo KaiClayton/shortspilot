@@ -1,0 +1,28 @@
+{% extends 'base.html' %}
+{% block content %}
+<style>
+.hero { text-align: center; padding: 100px 24px 60px; }
+.hero h1 { font-size: 52px; font-weight: 800; color: #fff; line-height: 1.1; margin-bottom: 20px; }
+.hero h1 span { color: #1D9E75; }
+.hero p { font-size: 18px; color: #888; max-width: 520px; margin: 0 auto 36px; line-height: 1.6; }
+.hero-btns { display: flex; gap: 12px; justify-content: center; }
+.features { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; max-width: 900px; margin: 60px auto; padding: 0 24px; }
+.feature { background: #111; border: 1px solid #222; border-radius: 12px; padding: 24px; }
+.feature-icon { font-size: 28px; margin-bottom: 12px; }
+.feature h3 { font-size: 16px; font-weight: 600; color: #fff; margin-bottom: 8px; }
+.feature p { font-size: 13px; color: #666; line-height: 1.5; }
+</style>
+<div class="hero">
+  <h1>Auto-post YouTube <span>Shorts</span><br>on autopilot</h1>
+  <p>Download any channel's Shorts, rank them by views, and auto-post 5 a day to your YouTube — fully automated.</p>
+  <div class="hero-btns">
+    <a href="/signup" class="btn btn-primary">Start for free</a>
+    <a href="/login" class="btn btn-secondary">Login</a>
+  </div>
+</div>
+<div class="features">
+  <div class="feature"><div class="feature-icon">⬇️</div><h3>Download any channel</h3><p>Paste a YouTube channel URL and we download all their Shorts at full quality.</p></div>
+  <div class="feature"><div class="feature-icon">📈</div><h3>Ranked by virality</h3><p>Videos are sorted by real view counts so your most viral content posts first.</p></div>
+  <div class="feature"><div class="feature-icon">🤖</div><h3>Fully automated</h3><p>Posts 5 videos per day spread across 9am, 12pm, 3pm, 6pm and 9pm automatically.</p></div>
+</div>
+{% endblock %}
