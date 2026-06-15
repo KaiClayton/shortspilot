@@ -1,5 +1,8 @@
-flask
+﻿flask
 flask-sqlalchemy
 werkzeug
+requests-oauthlib
 google-auth-oauthlib
 google-api-python-client
+yt-dlp
+apscheduler
