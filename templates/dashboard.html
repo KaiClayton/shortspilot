@@ -1,70 +1,103 @@
-{% extends 'base.html' %}
+﻿{% extends 'base.html' %}
 {% block content %}
 <style>
-.page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 28px; }
-.page-header h1 { font-size: 24px; font-weight: 700; color: #fff; }
-.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 32px; }
-.stat { background: #111; border: 1px solid #222; border-radius: 12px; padding: 20px; }
-.stat-label { font-size: 12px; color: #555; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; }
-.stat-val { font-size: 28px; font-weight: 700; color: #fff; }
-.stat-val.green { color: #1D9E75; }
-.channels-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
-.channel-card { background: #111; border: 1px solid #222; border-radius: 12px; padding: 20px; text-decoration: none; transition: border-color 0.15s; }
-.channel-card:hover { border-color: #444; }
-.channel-name { font-size: 16px; font-weight: 600; color: #fff; margin-bottom: 6px; }
-.channel-url { font-size: 12px; color: #555; margin-bottom: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.channel-meta { display: flex; gap: 12px; }
-.channel-badge { font-size: 11px; padding: 3px 10px; border-radius: 20px; }
-.badge-downloading { background: #1a2e1f; color: #5DCAA5; border: 1px solid #1D9E75; }
-.badge-ready { background: #1a1f2e; color: #5D9ACA; border: 1px solid #1D5F9E; }
-.badge-pending { background: #2e2a1a; color: #CAB45D; border: 1px solid #9E841D; }
-.empty-state { text-align: center; padding: 80px 20px; color: #444; }
-.empty-state h3 { font-size: 18px; color: #555; margin-bottom: 8px; }
-.empty-state p { font-size: 14px; margin-bottom: 24px; }
+.page-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:28px; }
+.page-header h1 { font-size:24px; font-weight:700; color:#fff; }
+.stats { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:32px; }
+.stat { background:#111; border:1px solid #222; border-radius:12px; padding:20px; }
+.stat-label { font-size:12px; color:#555; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:6px; }
+.stat-val { font-size:28px; font-weight:700; color:#fff; }
+.stat-val.green { color:#1D9E75; }
+.category-section { margin-bottom:36px; }
+.cat-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; padding-bottom:10px; border-bottom:1px solid #222; }
+.cat-title { font-size:16px; font-weight:600; color:#fff; display:flex; align-items:center; gap:10px; }
+.two-col { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+.col-label { font-size:11px; color:#555; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:10px; }
+.channel-card { background:#111; border:1px solid #222; border-radius:10px; padding:14px 16px; display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
+.channel-name { font-size:14px; font-weight:500; color:#fff; margin-bottom:3px; }
+.channel-url { font-size:11px; color:#555; }
+.channel-actions { display:flex; gap:6px; align-items:center; }
+.badge { font-size:11px; padding:2px 8px; border-radius:20px; }
+.badge-connected { background:#0d2e22; color:#5DCAA5; border:1px solid #1D9E75; }
+.badge-pending { background:#2e2a1a; color:#CAB45D; }
+.empty-col { background:#111; border:1px solid #1a1a1a; border-radius:10px; padding:20px; text-align:center; color:#444; font-size:13px; }
+.btn-sm { padding:5px 12px; border-radius:6px; border:1px solid #333; font-size:12px; cursor:pointer; background:#1a1a1a; color:#888; text-decoration:none; display:inline-block; }
+.btn-sm:hover { background:#222; color:#fff; }
+.btn-sm.red { border-color:#5a1a1a; color:#CA5D5D; }
+.btn-sm.green { background:#1D9E75; color:#fff; border-color:#1D9E75; }
 </style>
 <div class="container">
- <div style="background:#111; border:1px solid #222; border-radius:12px; padding:20px; margin-bottom:24px; display:flex; align-items:center; justify-content:space-between;">
-  <div>
-    <div style="font-size:15px; font-weight:600; color:#fff; margin-bottom:4px;">YouTube Account</div>
-    {% if user.youtube_connected %}
-      <div style="font-size:13px; color:#1D9E75;">✓ Connected</div>
-    {% else %}
-      <div style="font-size:13px; color:#666;">Not connected — connect to enable auto-posting</div>
-    {% endif %}
-  </div>
-  {% if user.youtube_connected %}
-    <a href="/disconnect-youtube" class="btn btn-secondary" style="font-size:12px;">Disconnect</a>
-  {% else %}
-    <a href="/connect-youtube" class="btn btn-primary">Connect YouTube</a>
-  {% endif %}
-</div>
+  <div class="page-header">
     <h1>Dashboard</h1>
-    <a href="/add-channel" class="btn btn-primary">+ Add Channel</a>
+    <div style="display:flex;gap:8px;">
+      <a href="/add-source" class="btn btn-secondary">+ Add Source</a>
+      <a href="/add-posting-channel" class="btn btn-primary">+ Add YouTube Channel</a>
+    </div>
   </div>
   <div class="stats">
-    <div class="stat"><div class="stat-label">Channels</div><div class="stat-val">{{ channels|length }}</div></div>
+    <div class="stat"><div class="stat-label">Source Channels</div><div class="stat-val">{{ by_category.values()|sum(attribute='sources')|list|length }}</div></div>
+    <div class="stat"><div class="stat-label">Posting Channels</div><div class="stat-val">{{ by_category.values()|sum(attribute='posting')|list|length }}</div></div>
     <div class="stat"><div class="stat-label">Scheduled</div><div class="stat-val green">{{ total_scheduled }}</div></div>
     <div class="stat"><div class="stat-label">Uploaded</div><div class="stat-val">{{ total_uploaded }}</div></div>
   </div>
-  {% if channels %}
-  <div class="channels-grid">
-    {% for channel in channels %}
-    <a href="/channel/{{ channel.id }}" class="channel-card">
-      <div class="channel-name">{{ channel.name }}</div>
-      <div class="channel-url">{{ channel.url }}</div>
-      <div class="channel-meta">
-        <span class="channel-badge badge-{{ channel.status }}">{{ channel.status }}</span>
-        <span style="font-size:12px; color:#555;">{{ channel.video_count }} videos</span>
+  {% set icons = {'Finance & Money': '💰', 'Entertainment & Funny': '😂', 'Motivation & Self Improvement': '🚀'} %}
+  {% for cat in categories %}
+  {% set data = by_category[cat] %}
+  <div class="category-section">
+    <div class="cat-header">
+      <div class="cat-title">{{ icons[cat] }} {{ cat }}</div>
+      <div style="display:flex;gap:8px;">
+        <a href="/add-source?category={{ cat }}" class="btn-sm">+ Source</a>
+        <a href="/add-posting-channel?category={{ cat }}" class="btn-sm green">+ YouTube Channel</a>
       </div>
-    </a>
-    {% endfor %}
+    </div>
+    <div class="two-col">
+      <div>
+        <div class="col-label">Source channels</div>
+        {% if data.sources %}
+          {% for ch in data.sources %}
+          <div class="channel-card">
+            <div>
+              <div class="channel-name">{{ ch.name }}</div>
+              <div class="channel-url">{{ ch.url[:50] }}</div>
+            </div>
+            <div class="channel-actions">
+              <span class="badge badge-{{ ch.status }}">{{ ch.status }}</span>
+              <a href="/delete-source/{{ ch.id }}" class="btn-sm red" onclick="return confirm('Remove?')">✕</a>
+            </div>
+          </div>
+          {% endfor %}
+        {% else %}
+          <div class="empty-col">None yet — <a href="/add-source?category={{ cat }}" style="color:#1D9E75;text-decoration:none;">+ Add one</a></div>
+        {% endif %}
+      </div>
+      <div>
+        <div class="col-label">YouTube posting channels</div>
+        {% if data.posting %}
+          {% for ch in data.posting %}
+          <div class="channel-card">
+            <div>
+              <div class="channel-name">{{ ch.name }}</div>
+              <div style="font-size:11px;color:#555;">{{ ch.jobs|length }} jobs</div>
+            </div>
+            <div class="channel-actions">
+              {% if ch.connected %}
+                <span class="badge badge-connected">✓ Connected</span>
+                <a href="/disconnect-channel/{{ ch.id }}" class="btn-sm red">Disconnect</a>
+              {% else %}
+                <span class="badge badge-pending">Not connected</span>
+                <a href="/connect-youtube/{{ ch.id }}" class="btn-sm green">Connect</a>
+              {% endif %}
+              <a href="/delete-posting/{{ ch.id }}" class="btn-sm red" onclick="return confirm('Remove?')">✕</a>
+            </div>
+          </div>
+          {% endfor %}
+        {% else %}
+          <div class="empty-col">None yet — <a href="/add-posting-channel?category={{ cat }}" style="color:#1D9E75;text-decoration:none;">+ Add one</a></div>
+        {% endif %}
+      </div>
+    </div>
   </div>
-  {% else %}
-  <div class="empty-state">
-    <h3>No channels yet</h3>
-    <p>Add a YouTube channel to start downloading and auto-posting Shorts</p>
-    <a href="/add-channel" class="btn btn-primary">+ Add your first channel</a>
-  </div>
-  {% endif %}
+  {% endfor %}
 </div>
 {% endblock %}

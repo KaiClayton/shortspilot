@@ -1,0 +1,23 @@
+﻿{% extends "base.html" %}
+{% block content %}
+<style>
+.form-wrap { max-width:560px; margin:60px auto; padding:0 24px; }
+.form-box { background:#111; border:1px solid #222; border-radius:16px; padding:36px; }
+.form-box h2 { font-size:22px; font-weight:700; color:#fff; margin-bottom:8px; }
+.form-box p { color:#666; font-size:14px; margin-bottom:28px; }
+.field { margin-bottom:20px; }
+.field label { display:block; font-size:13px; color:#888; margin-bottom:6px; }
+.field input, .field select { width:100%; padding:10px 14px; background:#0a0a0a; border:1px solid #2a2a2a; border-radius:8px; color:#e8e8e8; font-size:14px; }
+.form-box .btn { width:100%; text-align:center; padding:12px; }
+</style>
+<div class="form-wrap"><div class="form-box">
+<h2>Add source channel</h2>
+<p>Add a YouTube channel to download Shorts from.</p>
+<form method="POST">
+<div class="field"><label>Channel name</label><input type="text" name="name" required placeholder="e.g. FinanceCharm"></div>
+<div class="field"><label>Channel URL</label><input type="text" name="url" required placeholder="https://www.youtube.com/@ChannelName"></div>
+<div class="field"><label>Category</label><select name="category">{% for cat in categories %}<option value="{{ cat }}" {% if request.args.get("category") == cat %}selected{% endif %}>{{ cat }}</option>{% endfor %}</select></div>
+<button type="submit" class="btn btn-primary">Add source channel</button>
+</form>
+</div></div>
+{% endblock %}
