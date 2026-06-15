@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -30,7 +30,7 @@ nav { background: #111; border-bottom: 1px solid #222; padding: 14px 32px; displ
   <div class="nav-links">
     {% if session.user_id %}
       <a href="/dashboard">Dashboard</a>
-      <a href="/add-channel">+ Add Channel</a>
+      <a href="/add-source">+ Add Channel</a>
       <a href="/logout">Logout</a>
     {% else %}
       <a href="/login">Login</a>
@@ -50,3 +50,4 @@ nav { background: #111; border-bottom: 1px solid #222; padding: 14px 32px; displ
 {% block content %}{% endblock %}
 </body>
 </html>
+
