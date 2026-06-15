@@ -346,9 +346,12 @@ def trigger_jobs(source_id):
     ).all()
     if not posting_channels:
         return "No connected posting channels in same category"
-    cmd = ["yt-dlp", "--skip-download", "--print", "%(id)s|%(title)s|%(view_count)s", source.url]
+    url = source.url if "shorts" in source.url else source.url + "/shorts"
+    cmd = ["yt-dlp", "--skip-download", "--print", "%(id)s|%(title)s|%(view_count)s", url]
     import subprocess
     result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+    if not result.stdout.strip():
+        return f"yt-dlp returned no output. stderr: {result.stderr[:500]}"
     lines = [l for l in result.stdout.strip().split("\n") if "|" in l]
     lines_data = []
     for line in lines:
