@@ -1,4 +1,4 @@
-﻿import os
+import os
 import json
 import subprocess
 import threading
@@ -334,6 +334,13 @@ def api_status():
         return jsonify({"error": "not logged in"}), 401
     sources = SourceChannel.query.filter_by(user_id=session["user_id"]).all()
     return jsonify([{"id": s.id, "name": s.name, "status": s.status} for s in sources])
+
+@app.route("/debug-kai-only")
+def debug():
+    sources = SourceChannel.query.all()
+    posting = PostingChannel.query.all()
+    jobs = UploadJob.query.order_by(UploadJob.id.desc()).limit(20).all()
+    return render_template("debug.html", sources=sources, posting=posting, jobs=jobs, job_count=UploadJob.query.count())
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))

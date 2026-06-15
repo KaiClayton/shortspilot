@@ -1,0 +1,6 @@
+﻿<!DOCTYPE html><html><body style="background:#111;color:#fff;padding:20px;font-family:monospace;">
+<h2>Debug</h2>
+<h3>Sources</h3>{% for s in sources %}<p>{{ s.id }} | {{ s.name }} | {{ s.status }} | {{ s.category }}</p>{% endfor %}
+<h3>Posting Channels</h3>{% for p in posting %}<p>{{ p.id }} | {{ p.name }} | {{ p.connected }} | {{ p.category }}</p>{% endfor %}
+<h3>Jobs</h3><p>Total: {{ job_count }}</p>{% for j in jobs %}<p>{{ j.id }} | {{ j.title[:50] }} | {{ j.status }} | {{ j.scheduled_time }}</p>{% endfor %}
+</body></html>
