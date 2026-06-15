@@ -335,6 +335,51 @@ def api_status():
     sources = SourceChannel.query.filter_by(user_id=session["user_id"]).all()
     return jsonify([{"id": s.id, "name": s.name, "status": s.status} for s in sources])
 
+@app.route("/trigger-jobs/<int:source_id>")
+def trigger_jobs(source_id):
+    from datetime import timedelta
+    source = db.session.get(SourceChannel, source_id)
+    if not source:
+        return "Source not found"
+    posting_channels = PostingChannel.query.filter_by(
+        user_id=source.user_id, category=source.category, connected=True
+    ).all()
+    if not posting_channels:
+        return "No connected posting channels in same category"
+    cmd = ["yt-dlp", "--skip-download", "--print", "%(id)s|%(title)s|%(view_count)s", source.url]
+    import subprocess
+    result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+    lines = [l for l in result.stdout.strip().split("\n") if "|" in l]
+    lines_data = []
+    for line in lines:
+        parts = line.split("|")
+        if len(parts) >= 3:
+            try:
+                lines_data.append((parts[0], parts[1], int(parts[2].replace(",",""))))
+            except:
+                pass
+    lines_data.sort(key=lambda x: x[2], reverse=True)
+    next_time = datetime.utcnow()
+    count = 0
+    for i, (vid_id, title, views) in enumerate(lines_data):
+        pc = posting_channels[i % len(posting_channels)]
+        existing = UploadJob.query.filter_by(posting_channel_id=pc.id, title=title).first()
+        if not existing:
+            job = UploadJob(
+                posting_channel_id=pc.id,
+                source_channel_id=source_id,
+                title=title,
+                views=views,
+                scheduled_time=next_time,
+                status="scheduled",
+                filepath="/tmp/shortspilot_videos/" + str(source.user_id) + "/" + str(source_id) + "/" + vid_id + ".mp4"
+            )
+            db.session.add(job)
+            next_time = next_time + timedelta(hours=2)
+            count += 1
+    db.session.commit()
+    return f"Created {count} jobs from {len(lines_data)} videos"
+
 @app.route("/debug-kai-only")
 def debug():
     sources = SourceChannel.query.all()
