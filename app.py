@@ -1,10 +1,16 @@
 ﻿import os
 import json
+import subprocess
+import threading
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
-from datetime import datetime
+from datetime import datetime, timezone
 from requests_oauthlib import OAuth2Session
+from apscheduler.schedulers.background import BackgroundScheduler
+from googleapiclient.discovery import build
+from googleapiclient.http import MediaFileUpload
+import google.oauth2.credentials
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "shortspilot-secret-2026")
@@ -18,6 +24,8 @@ SCOPES = ["https://www.googleapis.com/auth/youtube.upload"]
 AUTH_URI = "https://accounts.google.com/o/oauth2/auth"
 TOKEN_URI = "https://oauth2.googleapis.com/token"
 CATEGORIES = ["Finance and Money", "Entertainment and Funny", "Motivation and Self Improvement"]
+VIDEOS_DIR = "/tmp/shortspilot_videos"
+os.makedirs(VIDEOS_DIR, exist_ok=True)
 
 def client_id():
     return os.environ.get("GOOGLE_CLIENT_ID", "")
@@ -54,12 +62,130 @@ class PostingChannel(db.Model):
 class UploadJob(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     posting_channel_id = db.Column(db.Integer, db.ForeignKey("posting_channel.id"), nullable=False)
+    source_channel_id = db.Column(db.Integer, nullable=True)
     title = db.Column(db.String(500), nullable=False)
-    scheduled_date = db.Column(db.String(20))
+    filepath = db.Column(db.String(1000), nullable=True)
+    views = db.Column(db.Integer, default=0)
+    scheduled_time = db.Column(db.DateTime, nullable=True)
     status = db.Column(db.String(50), default="scheduled")
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 with app.app_context():
     db.create_all()
+
+def download_channel(source_channel_id):
+    with app.app_context():
+        source = db.session.get(SourceChannel, source_channel_id)
+        if not source:
+            return
+        source.status = "downloading"
+        db.session.commit()
+        folder = os.path.join(VIDEOS_DIR, str(source.user_id), str(source_channel_id))
+        os.makedirs(folder, exist_ok=True)
+        archive = os.path.join(folder, "archive.txt")
+        out_tmpl = os.path.join(folder, "%(view_count)s---%(title).100s---%(id)s.%(ext)s")
+        cmd = [
+            "yt-dlp", "--skip-download",
+            "--print", "%(id)s|%(title)s|%(view_count)s",
+            source.url + "/shorts"
+        ]
+        try:
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+            lines = [l for l in result.stdout.strip().split("\n") if "|" in l]
+            lines_data = []
+            for line in lines:
+                parts = line.split("|")
+                if len(parts) >= 3:
+                    try:
+                        lines_data.append((parts[0], parts[1], int(parts[2].replace(",",""))))
+                    except:
+                        pass
+            lines_data.sort(key=lambda x: x[2], reverse=True)
+            posting_channels = PostingChannel.query.filter_by(
+                user_id=source.user_id, category=source.category, connected=True
+            ).all()
+            if posting_channels and lines_data:
+                from datetime import timedelta
+                next_time = datetime.utcnow()
+                for i, (vid_id, title, views) in enumerate(lines_data):
+                    pc = posting_channels[i % len(posting_channels)]
+                    existing = UploadJob.query.filter_by(
+                        posting_channel_id=pc.id,
+                        title=title
+                    ).first()
+                    if not existing:
+                        job = UploadJob(
+                            posting_channel_id=pc.id,
+                            source_channel_id=source_channel_id,
+                            title=title,
+                            views=views,
+                            scheduled_time=next_time,
+                            status="scheduled",
+                            filepath=os.path.join(folder, vid_id + ".mp4")
+                        )
+                        db.session.add(job)
+                        next_time = next_time + timedelta(hours=2)
+            source.status = "scheduled"
+            db.session.commit()
+        except Exception as e:
+            source.status = "error"
+            db.session.commit()
+            print(f"Download error: {e}")
+
+def post_due_videos():
+    with app.app_context():
+        now = datetime.utcnow()
+        due = UploadJob.query.filter(
+            UploadJob.status == "scheduled",
+            UploadJob.scheduled_time <= now,
+            UploadJob.filepath != None
+        ).all()
+        for job in due:
+            try:
+                pc = db.session.get(PostingChannel, job.posting_channel_id)
+                if not pc or not pc.connected or not pc.youtube_token:
+                    continue
+                token_data = json.loads(pc.youtube_token)
+                creds = google.oauth2.credentials.Credentials(
+                    token=token_data.get("access_token"),
+                    refresh_token=token_data.get("refresh_token"),
+                    token_uri=TOKEN_URI,
+                    client_id=client_id(),
+                    client_secret=client_secret_val(),
+                    scopes=SCOPES
+                )
+                if not os.path.exists(job.filepath):
+                    dl_cmd = [
+                        "yt-dlp",
+                        "-f", "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best",
+                        "--merge-output-format", "mp4",
+                        "-o", job.filepath,
+                        "https://www.youtube.com/watch?v=" + os.path.basename(job.filepath).replace(".mp4","")
+                    ]
+                    subprocess.run(dl_cmd, timeout=300)
+                if not os.path.exists(job.filepath):
+                    job.status = "error"
+                    db.session.commit()
+                    continue
+                youtube = build("youtube", "v3", credentials=creds)
+                body = {
+                    "snippet": {
+                        "title": job.title[:100],
+                        "description": "",
+                        "categoryId": "22"
+                    },
+                    "status": {"privacyStatus": "public"}
+                }
+                media = MediaFileUpload(job.filepath, mimetype="video/mp4", resumable=True)
+                youtube.videos().insert(part="snippet,status", body=body, media_body=media).execute()
+                job.status = "uploaded"
+                db.session.commit()
+            except Exception as e:
+                print(f"Upload error job {job.id}: {e}")
+
+scheduler = BackgroundScheduler(timezone="UTC")
+scheduler.add_job(post_due_videos, "interval", hours=2)
+scheduler.start()
 
 @app.route("/")
 def index():
@@ -126,7 +252,8 @@ def add_source():
         ch = SourceChannel(user_id=session["user_id"], name=request.form["name"], url=request.form["url"], category=request.form["category"])
         db.session.add(ch)
         db.session.commit()
-        flash("Source channel added!", "success")
+        threading.Thread(target=download_channel, args=(ch.id,), daemon=True).start()
+        flash("Source channel added! Fetching video list now...", "success")
         return redirect(url_for("dashboard"))
     return render_template("add_source.html", categories=CATEGORIES)
 
