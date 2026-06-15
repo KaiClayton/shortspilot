@@ -1,4 +1,4 @@
-import os
+﻿import os
 import json
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 from flask_sqlalchemy import SQLAlchemy
@@ -117,7 +117,7 @@ def dashboard():
         }
     total_scheduled = UploadJob.query.join(PostingChannel).filter(PostingChannel.user_id == uid, UploadJob.status == "scheduled").count()
     total_uploaded = UploadJob.query.join(PostingChannel).filter(PostingChannel.user_id == uid, UploadJob.status == "uploaded").count()
-    return render_template("dashboard.html", categories=CATEGORIES, by_category=by_category, total_scheduled=total_scheduled, total_uploaded=total_uploaded)
+    return render_template("dashboard.html", categories=CATEGORIES, by_category=by_category, total_scheduled=total_scheduled, total_uploaded=total_uploaded, source_count=len(sources), posting_count=len(posting))
 
 @app.route("/add-source", methods=["GET", "POST"])
 def add_source():
@@ -205,3 +205,4 @@ def delete_posting(id):
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=False)
+
