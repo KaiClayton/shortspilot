@@ -161,12 +161,12 @@ def post_due_videos():
                         vid_id = os.path.basename(job.filepath).replace(".mp4","")
                         dl_cmd = [
                             "yt-dlp",
-                            "--extractor-args", "youtube:player_client=ios",
+                            "--extractor-args", "youtube:player_client=android",
                             "-f", "best[ext=mp4]/best",
-                            "--merge-output-format", "mp4",
                             "--no-check-formats",
+                            "--no-playlist",
                             "-o", job.filepath,
-                            "https://www.youtube.com/shorts/" + vid_id
+                            "https://www.youtube.com/watch?v=" + vid_id
                         ]
                         result = subprocess.run(dl_cmd, capture_output=True, text=True, timeout=600)
                         print(f"Download: {result.returncode} {result.stderr[:100]}")
