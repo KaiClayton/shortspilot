@@ -186,8 +186,7 @@ def post_due_videos():
                         cookie_path = write_cookies()
                         dl_cmd = [
                             "yt-dlp",
-                            "--extractor-args", "youtube:player_client=android,web",
-                            *(["--cookies", cookie_path] if cookie_path else []),
+                            "--extractor-args", "youtube:player_client=web",
                             "-f", "best[ext=mp4]/best",
                             "--no-check-formats",
                             "--no-playlist",
