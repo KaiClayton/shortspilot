@@ -337,6 +337,11 @@ def api_status():
 
 @app.route("/trigger-jobs/<int:source_id>")
 def trigger_jobs(source_id):
+    import threading
+    threading.Thread(target=download_channel, args=(source_id,), daemon=True).start()
+    return f"Download started for source {source_id} - check /debug-kai-only in 3 minutes"
+
+def trigger_jobs_real(source_id):
     from datetime import timedelta
     source = db.session.get(SourceChannel, source_id)
     if not source:
