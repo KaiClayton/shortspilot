@@ -142,7 +142,13 @@ def post_due_videos():
         due = UploadJob.query.filter(
             UploadJob.status == "scheduled",
             UploadJob.scheduled_time <= now
-        ).limit(1).all()
+        channels = PostingChannel.query.filter_by(connected=True).all()
+        due = []
+        for pc in channels:
+            job = UploadJob.query.filter(UploadJob.status=="scheduled", UploadJob.scheduled_time<=now, UploadJob.posting_channel_id==pc.id).order_by(UploadJob.id).first()
+            if job:
+                due.append(job)
+        if False: pass
         print(f"Found {len(due)} due jobs")
         for job in due:
             try:
