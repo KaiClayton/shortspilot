@@ -397,6 +397,14 @@ def run_poster_now():
     threading.Thread(target=post_due_videos, daemon=True).start()
     return "Poster triggered - check Railway logs and /debug-kai-only in 2-3 minutes"
 
+@app.route("/check-jobs")
+def check_jobs():
+    jobs = UploadJob.query.filter_by(status="scheduled").order_by(UploadJob.id).limit(5).all()
+    out = ""
+    for j in jobs:
+        out += f"ID:{j.id} filepath:{j.filepath} time:{j.scheduled_time}<br>"
+    return out or "No jobs found"
+
 @app.route("/reschedule-now")
 def reschedule_now():
     from datetime import timedelta
