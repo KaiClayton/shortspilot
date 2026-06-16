@@ -194,7 +194,7 @@ def post_due_videos():
                     if not os.path.exists(job.filepath):
                         job.status = "error"
                         db.session.commit()
-                        print(f"File missing: {job.filepath}")
+                        print(f"File missing: {job.filepath} - skipping to next")
                         continue
                     youtube = build("youtube", "v3", credentials=creds)
                     body = {
@@ -471,12 +471,16 @@ def check_jobs():
 @app.route("/reschedule-now")
 def reschedule_now():
     from datetime import timedelta
-    jobs = UploadJob.query.filter_by(status="scheduled").order_by(UploadJob.id).all()
+    channels = PostingChannel.query.filter_by(connected=True).all()
     start = datetime.utcnow()
-    for i, job in enumerate(jobs):
-        job.scheduled_time = start + timedelta(hours=i*6)
+    total = 0
+    for ch in channels:
+        ch_jobs = UploadJob.query.filter_by(posting_channel_id=ch.id, status="scheduled").order_by(UploadJob.id).all()
+        for i, job in enumerate(ch_jobs):
+            job.scheduled_time = start + timedelta(hours=i*6)
+            total += 1
     db.session.commit()
-    return f"Rescheduled {len(jobs)} jobs starting from now, every 2 hours"
+    return f"Rescheduled {total} jobs across {len(channels)} channels"
 
 @app.route("/debug-kai-only")
 def debug():
