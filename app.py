@@ -159,8 +159,10 @@ def post_due_videos():
                         vid_id = os.path.basename(job.filepath).replace(".mp4","")
                         dl_cmd = [
                             "yt-dlp",
-                            "-f", "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best",
+                            "--extractor-args", "youtube:player_client=ios",
+                            "-f", "best[ext=mp4]/best",
                             "--merge-output-format", "mp4",
+                            "--no-check-formats",
                             "-o", job.filepath,
                             "https://www.youtube.com/shorts/" + vid_id
                         ]
