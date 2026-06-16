@@ -137,9 +137,8 @@ def post_due_videos():
         now = datetime.utcnow()
         due = UploadJob.query.filter(
             UploadJob.status == "scheduled",
-            UploadJob.scheduled_time <= now,
-            UploadJob.filepath != None
-        ).all()
+            UploadJob.scheduled_time <= now
+        ).limit(1).all()
         for job in due:
             try:
                 pc = db.session.get(PostingChannel, job.posting_channel_id)
@@ -154,20 +153,24 @@ def post_due_videos():
                     client_secret=client_secret_val(),
                     scopes=SCOPES
                 )
-                if not os.path.exists(job.filepath):
-                    dl_cmd = [
-                        "yt-dlp",
-                        "-f", "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best",
-                        "--merge-output-format", "mp4",
-                        "-o", job.filepath,
-                        "https://www.youtube.com/watch?v=" + os.path.basename(job.filepath).replace(".mp4","")
-                    ]
+                  os.makedirs(os.path.dirname(job.filepath), exist_ok=True)
+                  if not os.path.exists(job.filepath):
+                      vid_id = os.path.basename(job.filepath).replace(".mp4","")
+                      dl_cmd = [
+                          "yt-dlp",
+                          "-f", "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best",
+                          "--merge-output-format", "mp4",
+                          "-o", job.filepath,
+                          "https://www.youtube.com/shorts/" + vid_id
+                      ]
+                      result = subprocess.run(dl_cmd, capture_output=True, text=True, timeout=600)
+                      print(f"Download: {result.returncode} {result.stderr[:100]}")
                     subprocess.run(dl_cmd, timeout=300)
-                if not os.path.exists(job.filepath):
-                    job.status = "error"
-                    db.session.commit()
-                    continue
-                youtube = build("youtube", "v3", credentials=creds)
+                  if not os.path.exists(job.filepath):
+                      job.status = "error"
+                      db.session.commit()
+                      print(f"File missing after download: {job.filepath}")
+                      continue
                 body = {
                     "snippet": {
                         "title": job.title[:100],
