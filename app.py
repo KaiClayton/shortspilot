@@ -160,16 +160,7 @@ def post_due_videos():
                 )
                 if job.filepath:
                     os.makedirs(os.path.dirname(job.filepath), exist_ok=True)
-                    duplicate = UploadJob.query.filter_by(
-                    posting_channel_id=job.posting_channel_id,
-                    title=job.title,
-                    status="uploaded"
-                ).first()
-                if duplicate:
-                    job.status = "skipped"
-                    db.session.commit()
-                    continue
-                if not os.path.exists(job.filepath):
+                    if not os.path.exists(job.filepath):
                         vid_id = os.path.basename(job.filepath).replace(".mp4","")
                         dl_cmd = [
                             "yt-dlp",
@@ -182,16 +173,7 @@ def post_due_videos():
                         ]
                         result = subprocess.run(dl_cmd, capture_output=True, text=True, timeout=600)
                         print(f"Download: {result.returncode} {result.stderr[:100]}")
-                    duplicate = UploadJob.query.filter_by(
-                    posting_channel_id=job.posting_channel_id,
-                    title=job.title,
-                    status="uploaded"
-                ).first()
-                if duplicate:
-                    job.status = "skipped"
-                    db.session.commit()
-                    continue
-                if not os.path.exists(job.filepath):
+                    if not os.path.exists(job.filepath):
                         job.status = "error"
                         db.session.commit()
                         print(f"File missing: {job.filepath}")
