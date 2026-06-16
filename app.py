@@ -478,6 +478,10 @@ def debug():
     jobs = UploadJob.query.order_by(UploadJob.id.desc()).limit(20).all()
     return render_template("debug.html", sources=sources, posting=posting, jobs=jobs, job_count=UploadJob.query.count())
 
+scheduler = BackgroundScheduler(timezone="UTC")
+scheduler.add_job(post_due_videos, "interval", hours=6)
+scheduler.start()
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=False)
