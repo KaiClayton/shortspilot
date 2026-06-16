@@ -184,8 +184,13 @@ def post_due_videos():
                             "-o", job.filepath,
                             "https://www.youtube.com/watch?v=" + vid_id
                         ]
+                        import time
                         result = subprocess.run(dl_cmd, capture_output=True, text=True, timeout=600)
                         print(f"Download: {result.returncode} {result.stderr[:100]}")
+                        if result.returncode != 0:
+                            time.sleep(30)
+                            result = subprocess.run(dl_cmd, capture_output=True, text=True, timeout=600)
+                            print(f"Retry: {result.returncode} {result.stderr[:100]}")
                     if not os.path.exists(job.filepath):
                         job.status = "error"
                         db.session.commit()
