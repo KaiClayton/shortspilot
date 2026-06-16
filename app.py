@@ -153,26 +153,26 @@ def post_due_videos():
                     client_secret=client_secret_val(),
                     scopes=SCOPES
                 )
-                  os.makedirs(os.path.dirname(job.filepath), exist_ok=True)
-                  if not os.path.exists(job.filepath):
-                      vid_id = os.path.basename(job.filepath).replace(".mp4","")
-                      dl_cmd = [
-                          "yt-dlp",
-                          "-f", "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best",
-                          "--merge-output-format", "mp4",
-                          "-o", job.filepath,
-                          "https://www.youtube.com/shorts/" + vid_id
-                      ]
-                      result = subprocess.run(dl_cmd, capture_output=True, text=True, timeout=600)
-                      print(f"Download: {result.returncode} {result.stderr[:100]}")
-                    subprocess.run(dl_cmd, timeout=300)
-                  if not os.path.exists(job.filepath):
-                      job.status = "error"
-                      db.session.commit()
-                      print(f"File missing after download: {job.filepath}")
-                      continue
+                os.makedirs(os.path.dirname(job.filepath), exist_ok=True)
+                if not os.path.exists(job.filepath):
+                vid_id = os.path.basename(job.filepath).replace(".mp4","")
+                dl_cmd = [
+                "yt-dlp",
+                "-f", "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best",
+                "--merge-output-format", "mp4",
+                "-o", job.filepath,
+                "https://www.youtube.com/shorts/" + vid_id
+                ]
+                result = subprocess.run(dl_cmd, capture_output=True, text=True, timeout=600)
+                print(f"Download: {result.returncode} {result.stderr[:100]}")
+                subprocess.run(dl_cmd, timeout=300)
+                if not os.path.exists(job.filepath):
+                job.status = "error"
+                db.session.commit()
+                print(f"File missing after download: {job.filepath}")
+                continue
                 body = {
-                    "snippet": {
+                "snippet": {
                         "title": job.title[:100],
                         "description": "",
                         "categoryId": "22"
