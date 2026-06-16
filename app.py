@@ -474,7 +474,7 @@ def reschedule_now():
     jobs = UploadJob.query.filter_by(status="scheduled").order_by(UploadJob.id).all()
     start = datetime.utcnow()
     for i, job in enumerate(jobs):
-        job.scheduled_time = start + timedelta(hours=i*2)
+        job.scheduled_time = start + timedelta(hours=i*6)
     db.session.commit()
     return f"Rescheduled {len(jobs)} jobs starting from now, every 2 hours"
 
