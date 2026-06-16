@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+.page-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:28px}
+.page-header h1{font-size:24px;font-weight:700;color:#fff}
+.tabs{display:flex;gap:8px;margin-bottom:24px}
+.tab{padding:8px 18px;border-radius:8px;border:1px solid #222;color:#666;font-size:13px;text-decoration:none}
+.tab.active{background:#1D9E75;color:#fff;border-color:#1D9E75}
+.job-table{width:100%;border-collapse:collapse}
+.job-table th{text-align:left;font-size:11px;color:#555;text-transform:uppercase;padding:10px 16px;border-bottom:1px solid #1a1a1a}
+.job-table td{padding:12px 16px;border-bottom:1px solid #111;font-size:13px;color:#ccc}
+.badge{font-size:11px;padding:3px 8px;border-radius:20px}
+.badge-scheduled{background:#1a2e1a;color:#5DCA8A;border:1px solid #1D9E75}
+.badge-uploaded{background:#1a1a2e;color:#5D8ACA;border:1px solid #3D5EA0}
+.empty{text-align:center;padding:60px;color:#444}
+.pagination{display:flex;gap:8px;margin-top:24px;justify-content:center}
+.pagination a{padding:6px 12px;border-radius:6px;border:1px solid #222;color:#666;text-decoration:none;font-size:13px}
+.pagination a.active{background:#1D9E75;color:#fff;border-color:#1D9E75}
+</style>
+<div class="container">
+  <div class="page-header">
+    <h1>Upload Schedule</h1>
+    <a href="/dashboard" class="btn btn-secondary">Back</a>
+  </div>
+  <div class="tabs">
+    <a href="/schedule?status=scheduled" class="tab">Upcoming ({{ counts.scheduled }})</a>
+    <a href="/schedule?status=uploaded" class="tab">Uploaded ({{ counts.uploaded }})</a>
+    <a href="/schedule?status=error" class="tab">Errors ({{ counts.error }})</a>
+  </div>
+  {% if jobs %}
+  <table class="job-table">
+    <thead><tr><th>Title</th><th>Channel</th><th>Scheduled</th><th>Status</th><th></th></tr></thead>
+    <tbody>
+    {% for j in jobs %}
+    <tr>
+      <td style="color:#fff">{{ j.title[:80] }}</td>
+      <td style="color:#666">{{ j.channel_name }}</td>
+      <td>{% if j.scheduled_time %}{{ j.scheduled_time.strftime("%d %b %Y %H:%M") }}{% else %}-{% endif %}</td>
+      <td><span class="badge badge-{{ j.status }}">{{ j.status }}</span></td>
+      <td><a href="/skip-job/{{ j.id }}" style="color:#555;font-size:12px;text-decoration:none">Skip</a></td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty">No {{ status }} videos</div>
+  {% endif %}
+  <div class="pagination">
+    {% if page > 1 %}<a href="/schedule?status={{ status }}&page={{ page-1 }}">Prev</a>{% endif %}
+    <a class="active">Page {{ page }}</a>
+    {% if has_next %}<a href="/schedule?status={{ status }}&page={{ page+1 }}">Next</a>{% endif %}
+  </div>
+</div>
+{% endblock %}
