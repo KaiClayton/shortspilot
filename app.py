@@ -153,44 +153,42 @@ def post_due_videos():
                     client_secret=client_secret_val(),
                     scopes=SCOPES
                 )
-                os.makedirs(os.path.dirname(job.filepath), exist_ok=True)
-                if not os.path.exists(job.filepath):
-                    vid_id = os.path.basename(job.filepath).replace(".mp4","")
-                    dl_cmd = [
-                    "yt-dlp",
-                    "-f", "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best",
-                    "--merge-output-format", "mp4",
-                    "-o", job.filepath,
-                    "https://www.youtube.com/shorts/" + vid_id
-                    ]
-                    result = subprocess.run(dl_cmd, capture_output=True, text=True, timeout=600)
-                    print(f"Download: {result.returncode} {result.stderr[:100]}")
-                    subprocess.run(dl_cmd, timeout=300)
-                if not os.path.exists(job.filepath):
-                job.status = "error"
-                db.session.commit()
-                print(f"File missing after download: {job.filepath}")
-                continue
-                body = {
-                "snippet": {
-                        "title": job.title[:100],
-                        "description": "",
-                        "categoryId": "22"
-                    },
-                    "status": {"privacyStatus": "public"}
-                }
-                media = MediaFileUpload(job.filepath, mimetype="video/mp4", resumable=True)
-                youtube.videos().insert(part="snippet,status", body=body, media_body=media).execute()
-                job.status = "uploaded"
-                db.session.commit()
+                if job.filepath:
+                    os.makedirs(os.path.dirname(job.filepath), exist_ok=True)
+                    if not os.path.exists(job.filepath):
+                        vid_id = os.path.basename(job.filepath).replace(".mp4","")
+                        dl_cmd = [
+                            "yt-dlp",
+                            "-f", "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best",
+                            "--merge-output-format", "mp4",
+                            "-o", job.filepath,
+                            "https://www.youtube.com/shorts/" + vid_id
+                        ]
+                        result = subprocess.run(dl_cmd, capture_output=True, text=True, timeout=600)
+                        print(f"Download: {result.returncode} {result.stderr[:100]}")
+                    if not os.path.exists(job.filepath):
+                        job.status = "error"
+                        db.session.commit()
+                        print(f"File missing: {job.filepath}")
+                        continue
+                    youtube = build("youtube", "v3", credentials=creds)
+                    body = {
+                        "snippet": {
+                            "title": job.title[:100],
+                            "description": "",
+                            "categoryId": "22"
+                        },
+                        "status": {"privacyStatus": "public"}
+                    }
+                    media = MediaFileUpload(job.filepath, mimetype="video/mp4", resumable=True)
+                    youtube.videos().insert(part="snippet,status", body=body, media_body=media).execute()
+                    job.status = "uploaded"
+                    db.session.commit()
+                    print(f"Uploaded: {job.title}")
             except Exception as e:
-                print(f"Upload error job {job.id}: {e}")
+                print(f"Error job {job.id}: {e}")
 
-scheduler = BackgroundScheduler(timezone="UTC")
-scheduler.add_job(post_due_videos, "interval", hours=2)
-scheduler.start()
 
-@app.route("/")
 def index():
     if "user_id" in session:
         return redirect(url_for("dashboard"))
