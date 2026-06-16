@@ -251,7 +251,7 @@ def dashboard():
         }
     total_scheduled = UploadJob.query.join(PostingChannel).filter(PostingChannel.user_id == uid, UploadJob.status == "scheduled").count()
     total_uploaded = UploadJob.query.join(PostingChannel).filter(PostingChannel.user_id == uid, UploadJob.status == "uploaded").count()
-    return render_template("dashboard.html", categories=CATEGORIES, by_category=by_category, total_scheduled=total_scheduled, total_uploaded=total_uploaded)
+    return render_template("dashboard.html", categories=CATEGORIES, by_category=by_category, total_scheduled=total_scheduled, total_uploaded=total_uploaded, schedule_url="/schedule")
 
 @app.route("/add-source", methods=["GET", "POST"])
 def add_source():
@@ -336,6 +336,44 @@ def delete_posting(id):
         db.session.delete(ch)
         db.session.commit()
     return redirect(url_for("dashboard"))
+
+@app.route("/schedule")
+def schedule():
+    if "user_id" not in session:
+        return redirect(url_for("login"))
+    uid = session["user_id"]
+    status = request.args.get("status", "scheduled")
+    page = int(request.args.get("page", 1))
+    per_page = 50
+    base_query = UploadJob.query.join(PostingChannel).filter(
+        PostingChannel.user_id == uid,
+        UploadJob.status == status
+    ).order_by(UploadJob.scheduled_time.asc())
+    total = base_query.count()
+    jobs_raw = base_query.offset((page-1)*per_page).limit(per_page).all()
+    jobs = []
+    for j in jobs_raw:
+        pc = db.session.get(PostingChannel, j.posting_channel_id)
+        j.channel_name = pc.name if pc else "Unknown"
+        jobs.append(j)
+    counts = {
+        "scheduled": UploadJob.query.join(PostingChannel).filter(PostingChannel.user_id == uid, UploadJob.status == "scheduled").count(),
+        "uploaded": UploadJob.query.join(PostingChannel).filter(PostingChannel.user_id == uid, UploadJob.status == "uploaded").count(),
+        "error": UploadJob.query.join(PostingChannel).filter(PostingChannel.user_id == uid, UploadJob.status == "error").count(),
+    }
+    return render_template("schedule.html", jobs=jobs, status=status, page=page, has_next=(page*per_page < total), counts=counts)
+
+@app.route("/skip-job/<int:id>")
+def skip_job(id):
+    if "user_id" not in session:
+        return redirect(url_for("login"))
+    job = db.session.get(UploadJob, id)
+    if job:
+        pc = db.session.get(PostingChannel, job.posting_channel_id)
+        if pc and pc.user_id == session["user_id"]:
+            job.status = "skipped"
+            db.session.commit()
+    return redirect(url_for("schedule"))
 
 @app.route("/api/status")
 def api_status():
