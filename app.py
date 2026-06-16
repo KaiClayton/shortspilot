@@ -188,7 +188,9 @@ def post_due_videos():
                     db.session.commit()
                     print(f"Uploaded: {job.title}")
             except Exception as e:
+                import traceback
                 print(f"Error job {job.id}: {e}")
+                print(traceback.format_exc())
 
 
 def index():
