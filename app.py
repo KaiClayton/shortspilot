@@ -177,7 +177,7 @@ def post_due_videos():
                         vid_id = os.path.basename(job.filepath).replace(".mp4","")
                         dl_cmd = [
                             "yt-dlp",
-                            "--extractor-args", "youtube:player_client=android",
+                            "--extractor-args", "youtube:player_client=android,web",
                             "-f", "best[ext=mp4]/best",
                             "--no-check-formats",
                             "--no-playlist",
