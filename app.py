@@ -397,6 +397,16 @@ def run_poster_now():
     threading.Thread(target=post_due_videos, daemon=True).start()
     return "Poster triggered - check Railway logs and /debug-kai-only in 2-3 minutes"
 
+@app.route("/reschedule-now")
+def reschedule_now():
+    from datetime import timedelta
+    jobs = UploadJob.query.filter_by(status="scheduled").order_by(UploadJob.id).all()
+    start = datetime.utcnow()
+    for i, job in enumerate(jobs):
+        job.scheduled_time = start + timedelta(hours=i*2)
+    db.session.commit()
+    return f"Rescheduled {len(jobs)} jobs starting from now, every 2 hours"
+
 @app.route("/debug-kai-only")
 def debug():
     sources = SourceChannel.query.all()
