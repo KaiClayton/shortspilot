@@ -135,6 +135,14 @@ def download_channel(source_channel_id):
             db.session.commit()
             print(f"Download error: {e}")
 
+def write_cookies():
+    cookies = os.environ.get("YT_COOKIES", "")
+    if cookies:
+        path = "/tmp/yt_cookies.txt"
+        open(path, "w").write(cookies)
+        return path
+    return None
+
 def post_due_videos():
     with app.app_context():
         now = datetime.utcnow()
@@ -175,9 +183,11 @@ def post_due_videos():
                         continue
                     if not os.path.exists(job.filepath):
                         vid_id = os.path.basename(job.filepath).replace(".mp4","")
+                        cookie_path = write_cookies()
                         dl_cmd = [
                             "yt-dlp",
                             "--extractor-args", "youtube:player_client=android,web",
+                            *(["--cookies", cookie_path] if cookie_path else []),
                             "-f", "best[ext=mp4]/best",
                             "--no-check-formats",
                             "--no-playlist",
