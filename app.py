@@ -160,6 +160,11 @@ def post_due_videos():
                 )
                 if job.filepath:
                     os.makedirs(os.path.dirname(job.filepath), exist_ok=True)
+                    duplicate = UploadJob.query.filter_by(posting_channel_id=job.posting_channel_id, title=job.title, status="uploaded").first()
+                    if duplicate:
+                        job.status = "skipped"
+                        db.session.commit()
+                        continue
                     if not os.path.exists(job.filepath):
                         vid_id = os.path.basename(job.filepath).replace(".mp4","")
                         dl_cmd = [
