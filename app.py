@@ -80,6 +80,8 @@ def download_channel(source_channel_id):
             return
         source.status = "downloading"
         db.session.commit()
+        url = source.url.replace("m.youtube.com", "www.youtube.com")
+        url = url.rstrip("/").replace("/shorts", "")
         folder = os.path.join(VIDEOS_DIR, str(source.user_id), str(source_channel_id))
         os.makedirs(folder, exist_ok=True)
         archive = os.path.join(folder, "archive.txt")
@@ -87,7 +89,7 @@ def download_channel(source_channel_id):
         cmd = [
             "yt-dlp", "--skip-download",
             "--print", "%(id)s|%(title)s|%(view_count)s",
-            source.url + "/shorts"
+            url + "/shorts"
         ]
         try:
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
