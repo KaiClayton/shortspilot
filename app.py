@@ -158,6 +158,12 @@ def post_due_videos():
                     client_secret=client_secret_val(),
                     scopes=SCOPES
                 )
+                if creds.expired or not creds.token:
+                    from google.auth.transport.requests import Request
+                    creds.refresh(Request())
+                    token_data["access_token"] = creds.token
+                    pc.youtube_token = json.dumps(token_data)
+                    db.session.commit()
                 if job.filepath:
                     os.makedirs(os.path.dirname(job.filepath), exist_ok=True)
                     duplicate = UploadJob.query.filter_by(posting_channel_id=job.posting_channel_id, title=job.title, status="uploaded").first()
